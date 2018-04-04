@@ -31,11 +31,16 @@ in this setup conditions.
 ## Delivered files
 
 + **challenge.ipynb** : jupyter notebook with the exploratory analysis and explanation
+    + <p align="center">
+        <img height="200px" src="http://nlp.franciscodias.pt/repo/bunch/notebook.png" alt="this notebook" />
+    </p>
+
 + **challenge.html** : HTML version of the jupyter notebook
 + **training.py** : training script
 + **predict.py** : prediction script 
 + **common.py** : code that is shared between the trainer and predicted,
-+ **constants.py** : shared constants.
++ **constants.py** : shared constants;
++ **results.tsv** : TSV file containing the category predictions for the unlabelled files.
 
 ## How to install
 
