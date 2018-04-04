@@ -36,12 +36,13 @@ import constants
 logger = common.logger
 
 
-# TFIDF RELATED ##
+# TFIDF MODEL RELATED ##
 
 def build_tfidf_model():
     """
+    Assembles a TF-IDF + SVM pipeline.
 
-    :return:
+    :return: model
     """
     # TODO: arguments to change the parameters of the model
     count_vectorizer = CountVectorizer(ngram_range=(1, 1), max_features=500)
@@ -55,28 +56,15 @@ def build_tfidf_model():
     return model
 
 
-def tokenise_pos_stemming(df):
-    logger.info("tok+pos+stem...")
-    # pros
-    df["pros_tok_pos_stem"] = df["pros"].apply(common.tok_pos_stem)
-    df["pros_tok_pos_stem"] = df["pros_tok_pos_stem"].apply(lambda entry: common.prefix(entry, "+"))
-    # cons
-    df["cons_tok_pos_stem"] = df["cons"].apply(common.tok_pos_stem)
-    df["cons_tok_pos_stem"] = df["cons_tok_pos_stem"].apply(lambda entry: common.prefix(entry, "-"))
-    # pros + cons
-    df["all_tok_pos_stem"] = df["pros_tok_pos_stem"] + " " + df["cons_tok_pos_stem"]
-    return df
-
-
 def train_tfidf_model(model, df):
     """
+    Trains TF-IDF model given a dataframe
 
-    :param model:
-    :param train_data:
-    :param train_labels:
-    :return:
+    :param model: sklearn pipeline model
+    :param df: pandas df
+    :return: model
     """
-    df = tokenise_pos_stemming(df)
+    df = common.tokenise_pos_stemming(df)
 
     logger.info("training model...")
     train_data = df.as_matrix(columns=["all_tok_pos_stem"])[:, 0]
@@ -86,16 +74,17 @@ def train_tfidf_model(model, df):
     return model
 
 
-# CONVNET RELATED ##
+# CONVNET MODEL RELATED ##
 
 def build_convnet_model(weights, sequence_dim, classes_dim, dropout_val):
     """
+    Assembles and compiles a CNN with 8 layers based on Yoon Kim architecture (2014)
 
-    :param weights:
-    :param sequence_dim:
-    :param classes_dim:
-    :param dropout_val:
-    :return:
+    :param weights: word2vec lexicon
+    :param sequence_dim: int, input max dimension
+    :param classes_dim: int, number of categories at the end
+    :param dropout_val: float, dropout prob value
+    :return: convnet model
     """
     # TODO: arguments (instead of hard-coded constants) describing the parameters of the model
     _lexicon_dim = weights.shape[0]
@@ -126,10 +115,10 @@ def build_convnet_model(weights, sequence_dim, classes_dim, dropout_val):
 def train_convnet_model(model, train_vectors, train_labels):
     """
 
-    :param model:
-    :param train_vectors:
+    :param model: CNN
+    :param train_vectors: ndarray,
     :param train_labels:
-    :return:
+    :return: model: CNN, history: dict, training history
     """
     early_stop_cb = EarlyStopping(patience=7, monitor="val_acc", mode="max")
     callbacks = [early_stop_cb]
@@ -146,8 +135,8 @@ def train_convnet_model(model, train_vectors, train_labels):
 def load_dataframe(dataframe_file):
     """
 
-    :param dataframe_file:
-    :return:
+    :param dataframe_file: str, path pickle file
+    :return: pandas df
     """
     logger.info("loading dataframe...")
     return pd.read_pickle(dataframe_file)
@@ -160,6 +149,7 @@ def preprocess_dataframe(df):
     -- remove duplicate entries
     -- remove entries with possible non-english texts
     -- segment texts between pros and cons
+
     :param df: pandas df
     :return: pandas df
     """
@@ -207,25 +197,33 @@ if __name__ == "__main__":
     df = preprocess_dataframe(df)
 
     if model_type == "convnet":
+        # CNN
 
+        # builds w2v lexicon
         wv, weights = common.load_word2vec(constants.KEY_VECS, constants.WEIGTHS)
         embedding_vectors = common.create_embedding_vectors(df["all"], wv)
 
+        # converts training data into input format for CNN
         train_vectors = pad_sequences(embedding_vectors, maxlen=constants.SEQUENCE_DIM, padding='post')
         train_labelmax = [constants.CLASS_LABELS.index(row) for row in df["labelmax"].as_matrix()]
         train_labels = to_categorical(np.asarray(train_labelmax))
 
+        # builds and train model
         model = build_convnet_model(weights, constants.SEQUENCE_DIM, constants.CLASSES_DIM, constants.DROPOUT_VAL)
         model, _ = train_convnet_model(model, train_vectors, train_labels)
 
+        # stores model
         logger.info("saving " + model_file)
         model.save(model_file)
 
     elif model_type == "tfidf":
+        # TF-IDF
 
+        # builds and train model
         model = build_tfidf_model()
         model = train_tfidf_model(model, df)
 
+        # stores model
         logger.info("saving " + model_file)
         joblib.dump(model, model_file)
 

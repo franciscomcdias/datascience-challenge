@@ -14,6 +14,7 @@ import argparse
 import json
 
 import numpy as np
+import os
 import pandas as pd
 from keras.models import load_model
 from keras.preprocessing.sequence import pad_sequences
@@ -25,31 +26,46 @@ import constants
 logger = common.logger
 
 
-def load_json_review_from_file(file_paths):
+def review_from_file(file_path, content):
     """
-    Loads a file with a list of reviews in JSON format.
+    Retrieves review texts from a JSON
+    :param file_path: str, path to a file
+    :param content:
+    :return:
+    """
+    logger.info("processing file " + file_path)
+    review_company = json.load(open(file_path, "r"))
+    for review in review_company:
+        title, pros, cons = "", "", ""
+        if "title" in review and review["title"]:
+            title = review["title"]
+        if "pros" in review and review["pros"]:
+            pros = review["pros"]
+        if "cons" in review and review["cons"]:
+            cons = review["cons"]
+        content.append({
+            "file_path": file_path,
+            "title": title,
+            "pros": pros,
+            "cons": cons,
+            "all": pros + " " + cons
+        })
+
+
+def load_json_review_from_file(paths):
+    """
+    Loads a folder of files or a list of files with reviews in JSON format.
     Every JSON structure must conatin at least the fields: title, pros, cons
-    :param file_paths: list of str
+    :param paths: list of str, can be a folder or a list of files
     :return: dataframe containing: file_path, title, pros, and cons
     """
     content = []
-    for file_path in file_paths:
-        review_company = json.load(open(file_path, "r"))
-        for review in review_company:
-            title, pros, cons = "", "", ""
-            if "title" in review and review["title"]:
-                title = review["title"]
-            if "pros" in review and review["pros"]:
-                pros = review["pros"]
-            if "cons" in review and review["cons"]:
-                cons = review["cons"]
-            content.append({
-                "file_path": file_path,
-                "title": title,
-                "pros": pros,
-                "cons": cons,
-                "all": pros + " " + cons
-            })
+    for path in paths:
+        if os.path.isdir(path):
+            for file in os.listdir(path):
+                review_from_file(os.path.join(path, file), content)
+        else:
+            review_from_file(path, content)
     return pd.DataFrame.from_dict(content)
 
 
@@ -71,7 +87,7 @@ def write_results_into_tsv_file(results, file_path):
 
 def predict_tfidf(model, reviews):
     """
-    Runs a prediction of the category of a review using a TFIDF model.
+    Runs a prediction over the review texts from a Dataframe using a TFIDF model.
     The categories are listed in CLASS_LABELS in the file `common.py`.
     :param model: serialized model
     :param reviews: dataframe
@@ -81,14 +97,15 @@ def predict_tfidf(model, reviews):
     for index, review in reviews.iterrows():
         input = common.tok_pos_stem(review["all"])
         labels = model.predict([input])
-        label = np.argmax(labels[0])
-        results.append([review["file_path"], review["title"], constants.CLASS_LABELS[label]])
+        label = labels[0]
+        results.append([review["file_path"], review["title"], label])
     return results
 
 
-def predict_keras(model, df, key_vecs_file, weights_file):
+def predict_cnn(model, df, key_vecs_file, weights_file):
     """
-
+    Runs the predictyion over the review texts from a Dataframe using a CNN model.
+    The categories are listed in CLASS_LABELS in the file `common.py`.
     :param model:
     :param reviews: dataframe
     :param key_vecs_file:
@@ -96,16 +113,27 @@ def predict_keras(model, df, key_vecs_file, weights_file):
     :return:
     """
     results = []
+
+    # builds w2v lexicon
     wv, weights = common.load_word2vec(key_vecs_file, weights_file)
     embedding_vectors = common.create_embedding_vectors(df["all"], wv)
 
+    # converts training data into input format for CNN
     vectors = pad_sequences(embedding_vectors, maxlen=constants.SEQUENCE_DIM, padding='post')
 
+    # runs prediction
     logger.info("predicting...")
-    for index, review in reviews.iterrows():
-        labels = model.predict(vectors)
-        label = np.argmax(labels[0])
-        results.append([review["file_path"], review["title"], constants.CLASS_LABELS[label]])
+    predictions = model.predict(vectors)
+
+    # labels for predictions
+    prediction_labels = []
+    for prediction in predictions:
+        max_one_index = np.argmax(prediction)
+        prediction_labels.append(constants.CLASS_LABELS[max_one_index])
+
+    # prepares results
+    for index, review in df.iterrows():
+        results.append([review["file_path"], review["title"], prediction_labels[index]])
     return results
 
 
@@ -121,18 +149,25 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
 
+    # arguments
     files_to_process = args.file
     model_file = args.model
     outtsv_file = args.outtsv
 
+    # loads reviews
     reviews = load_json_review_from_file(files_to_process)
 
+    # loads model and predicts:
     if model_file.endswith(".h5"):
+        # h5 files contain CNN models
         model = load_model(model_file)
-        results = predict_keras(model, reviews, constants.KEY_VECS, constants.WEIGTHS)
+        results = predict_cnn(model, reviews, constants.KEY_VECS, constants.WEIGTHS)
+
     elif model_file.endswith(".pickle"):
+        # pickle files contain TDIDF models
         model = joblib.load(model_file)
         results = predict_tfidf(model, reviews)
+
     else:
         raise Exception("unknown model type")
 

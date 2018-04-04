@@ -21,6 +21,7 @@ from nltk.stem import SnowballStemmer
 
 import constants
 
+#
 stop_words_en = set(stopwords.words("english"))
 stemmer_en = SnowballStemmer('english')
 
@@ -103,12 +104,32 @@ def prefix(text, _prefix):
     return " ".join([_prefix + _token for _token in text.split()])
 
 
+def tokenise_pos_stemming_pros_cons(df):
+    """
+    performs tokenisation + gather POS NN/JJ/VB* + stemming just for Pros and Cons texts and
+    returns the same dataframe with a new column "all_tok_pos_stem" with the concatenation of
+    this information
+    :param df: pandas df
+    :return: pandas df
+    """
+    logger.info("tok+pos+stem...")
+    # pros
+    df["pros_tok_pos_stem"] = df["pros"].apply(tok_pos_stem)
+    df["pros_tok_pos_stem"] = df["pros_tok_pos_stem"].apply(lambda entry: prefix(entry, "+"))
+    # cons
+    df["cons_tok_pos_stem"] = df["cons"].apply(tok_pos_stem)
+    df["cons_tok_pos_stem"] = df["cons_tok_pos_stem"].apply(lambda entry: prefix(entry, "-"))
+    # pros + cons
+    df["all_tok_pos_stem"] = df["pros_tok_pos_stem"] + " " + df["cons_tok_pos_stem"]
+    return df
+
+
 def load_word2vec(key_vecs_file, weights_file):
     """
-
-    :param key_vecs_file:
-    :param weights_file:
-    :return:
+    loads w2v keyvecs and lexicon into memory
+    :param key_vecs_file: path to keyvecs file
+    :param weights_file: path to lexicon w2v file
+    :return: keyvecs, lexicon
     """
     logger.info("loading word2vec model...")
     wv = Word2VecKeyedVectors.load(key_vecs_file)
@@ -118,25 +139,32 @@ def load_word2vec(key_vecs_file, weights_file):
 
 def create_embedding_vectors(df, wv):
     """
+    create vectors of words indexes in a w2c lexicon
     Given a dataframe wirh texts
-    :param df:
-    :return:
+    :param df: pandas df
+    :return: lists of int
     """
 
-    def vectorise_token(token, wv):
+    def get_w2v_token_index(token, wv):
+        """
+        Gets the index from a w2v lexicon, if exists
+        :param token: str
+        :param wv: w2v lexicon list
+        :return: int
+        """
         # just ignoring OOVs
-        vector = None
+        index = None
         if token in wv.vocab:
-            vector = wv.index2entity.index(token)
-        return vector
+            index = wv.index2entity.index(token)
+        return index
 
     logger.info("creating embedding vectors...")
     embedding_vectors = []
     for text in df:
         text_embedding = []
         for token in text:
-            vector = vectorise_token(token, wv)
-            if vector is not None:
-                text_embedding.append(vector)
+            index = get_w2v_token_index(token, wv)
+            if index is not None:
+                text_embedding.append(index)
         embedding_vectors.append(text_embedding)
     return embedding_vectors
