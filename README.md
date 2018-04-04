@@ -121,6 +121,12 @@ download script.
 
 ## Examples
 
+Running over all the files inside `data/unlabelled-dataset`:
+
+`find data/unlabelled-dataset -type f -print0 | xargs -r0 python predict.py models/svm_pos_stem.pickle results.tsv`
+
+---
+
 `python training.py data/labelled_dataset.pickle convnet cnn.h5`
 
 ```
