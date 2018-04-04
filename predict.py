@@ -1,7 +1,7 @@
 """
 PREDICT.PY
 
-usage: `python predict.py [MODEL FILE] [JSON FILES...]`
+usage: `python predict.py [MODEL FILE] [OUTPUT TSV] [JSON FILES...]`
 
 Runs the predictive model over a set of JSON files containing reviews.
 
@@ -14,15 +14,15 @@ import argparse
 import json
 
 import numpy as np
+import pandas as pd
 from keras.models import load_model
+from keras.preprocessing.sequence import pad_sequences
 from sklearn.externals import joblib
 
 import common
+import constants
 
-FILEPATH = 0
-TITLE = 1
-PROS = 2
-CONS = 3
+logger = common.logger
 
 
 def load_json_review_from_file(file_paths):
@@ -30,7 +30,7 @@ def load_json_review_from_file(file_paths):
     Loads a file with a list of reviews in JSON format.
     Every JSON structure must conatin at least the fields: title, pros, cons
     :param file_paths: list of str
-    :return: list of 4-tuples containing: file_path, title, pros, and cons
+    :return: dataframe containing: file_path, title, pros, and cons
     """
     content = []
     for file_path in file_paths:
@@ -43,8 +43,14 @@ def load_json_review_from_file(file_paths):
                 pros = review["pros"]
             if "cons" in review and review["cons"]:
                 cons = review["cons"]
-            content.append([file_path, title, pros, cons])
-    return content
+            content.append({
+                "file_path": file_path,
+                "title": title,
+                "pros": pros,
+                "cons": cons,
+                "all": pros + " " + cons
+            })
+    return pd.DataFrame.from_dict(content)
 
 
 def write_results_into_tsv_file(results, file_path):
@@ -68,31 +74,45 @@ def predict_tfidf(model, reviews):
     Runs a prediction of the category of a review using a TFIDF model.
     The categories are listed in CLASS_LABELS in the file `common.py`.
     :param model: serialized model
-    :param reviews: list of tuples provided by `load_json_review_from_file`
+    :param reviews: dataframe
     :return: list of tuples with: file_path, title of review, predicted category for review
     """
     results = []
-    for review in reviews:
-        input = common.tok_pos_stem(review[PROS]) + " " + common.tok_pos_stem(review[CONS])
+    for index, review in reviews.iterrows():
+        input = common.tok_pos_stem(review["all"])
         labels = model.predict([input])
         label = np.argmax(labels[0])
-        results.append([review[FILEPATH], review[TITLE], common.CLASS_LABELS[label]])
+        results.append([review["file_path"], review["title"], constants.CLASS_LABELS[label]])
     return results
 
 
-def predict_keras(model, reviews):
+def predict_keras(model, df, key_vecs_file, weights_file):
+    """
+
+    :param model:
+    :param reviews: dataframe
+    :param key_vecs_file:
+    :param weights_file:
+    :return:
+    """
     results = []
-    for review in reviews:
-        input = common.tok_pos_stem(review[PROS]) + " " + common.tok_pos_stem(review[CONS])
-        labels = model.predict([input])
+    wv, weights = common.load_word2vec(key_vecs_file, weights_file)
+    embedding_vectors = common.create_embedding_vectors(df["all"], wv)
+
+    vectors = pad_sequences(embedding_vectors, maxlen=constants.SEQUENCE_DIM, padding='post')
+
+    logger.info("predicting...")
+    for index, review in reviews.iterrows():
+        labels = model.predict(vectors)
         label = np.argmax(labels[0])
-        results.append([review[FILEPATH], review[TITLE], common.CLASS_LABELS[label]])
+        results.append([review["file_path"], review["title"], constants.CLASS_LABELS[label]])
     return results
 
 
 def get_parser():
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('model', help='model to load and perform', type=str)
+    parser.add_argument('outtsv', help='output TSV file', type=str)
     parser.add_argument('file', type=str, nargs="+", help='JSON file(s) to process')
     return parser
 
@@ -109,11 +129,14 @@ if __name__ == "__main__":
 
     if model_file.endswith(".h5"):
         model = load_model(model_file)
-        results = predict_keras(model, reviews)
+        results = predict_keras(model, reviews, constants.KEY_VECS, constants.WEIGTHS)
     elif model_file.endswith(".pickle"):
         model = joblib.load(model_file)
         results = predict_tfidf(model, reviews)
     else:
         raise Exception("unknown model type")
 
+    logger.info("writing " + outtsv_file)
     write_results_into_tsv_file(results, outtsv_file)
+
+    logger.info("done!")

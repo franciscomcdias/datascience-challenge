@@ -7,17 +7,27 @@ author: mail@franciscodias.pt
 date: 03-04-2017
 version: 1.0
 """
+import logging
+import sys
+
+import langdetect
 import nltk
+import numpy as np
+import re
+from gensim.models.keyedvectors import Word2VecKeyedVectors
 from nltk import pos_tag
 from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
 
-import langdetect
+import constants
 
 stop_words_en = set(stopwords.words("english"))
 stemmer_en = SnowballStemmer('english')
 
-CLASS_LABELS = ['adaptability', 'collaboration', 'customer', 'detail', 'integrity', 'result']
+# logger
+logger = logging.getLogger('bunch')
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler(sys.stderr))
 
 
 def text_language(text):
@@ -27,6 +37,17 @@ def text_language(text):
     :return: str (like "en")
     """
     return langdetect.detect(text)
+
+
+def filter_by_segment(entry, index):
+    """
+     returns a segment by it's index in a string splited by SEGMENT_TITLES (i.e.: pros= 2, cons = 4, ...)
+    :param entry:
+    :param index:
+    :return:
+    """
+    segments = re.split(constants.SEGMENT_TITLES, entry)
+    return segments[index]
 
 
 def tok_stem_stop(text):
@@ -57,7 +78,7 @@ def tok_pos_stem(text):
     # tokenize and remove empty entries
     tokens = nltk.word_tokenize(text.lower())
     # choosing only nouns, verbs, and adjectives
-    tokens = [_pos[0] for _pos in pos_tag(tokens) if _pos[1] in ["NN", "NNS", "JJ", "VB", "VBG"]]
+    tokens = [_pos[0] for _pos in pos_tag(tokens) if _pos[1] in constants.ALLOWED_POS]
     # stemming
     tokens = [stemmer_en.stem(_token) for _token in tokens]
     return " ".join(tokens)
@@ -80,3 +101,42 @@ def prefix(text, _prefix):
     :return: str
     """
     return " ".join([_prefix + _token for _token in text.split()])
+
+
+def load_word2vec(key_vecs_file, weights_file):
+    """
+
+    :param key_vecs_file:
+    :param weights_file:
+    :return:
+    """
+    logger.info("loading word2vec model...")
+    wv = Word2VecKeyedVectors.load(key_vecs_file)
+    weights = np.load(weights_file)
+    return wv, weights
+
+
+def create_embedding_vectors(df, wv):
+    """
+    Given a dataframe wirh texts
+    :param df:
+    :return:
+    """
+
+    def vectorise_token(token, wv):
+        # just ignoring OOVs
+        vector = None
+        if token in wv.vocab:
+            vector = wv.index2entity.index(token)
+        return vector
+
+    logger.info("creating embedding vectors...")
+    embedding_vectors = []
+    for text in df:
+        text_embedding = []
+        for token in text:
+            vector = vectorise_token(token, wv)
+            if vector is not None:
+                text_embedding.append(vector)
+        embedding_vectors.append(text_embedding)
+    return embedding_vectors
