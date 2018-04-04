@@ -39,14 +39,16 @@ in this setup conditions.
 
 ## How to install
 
-+ python 3.4+
++ use python 3.4+
 + activate your favourite virtual environment
 + install requirements ```pip install -r requirements.txt```
-+ download the following modules from NLTK:
-    + `averaged_perceptron_tagger`
-    + `punkt`
-+ download the models into the folder `wv` using the provided script `models/download_models.sh`
-    + run `$ sh download_models.sh` inside `models` folder 
++ run setup: ``python setup.py install`` for downloading word2vec models and NLTK modules
+    + or execute it manualy:
+        + download the following modules from NLTK:
+            + `averaged_perceptron_tagger`
+            + `punkt`
+        + download the models into the folder `wv` using the provided script `models/download_models.sh`
+            + run `$ sh download_models.sh` inside `models` folder 
 
 ## How to run
 

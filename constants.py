@@ -1,3 +1,12 @@
+"""
+CONSTANTS.PY
+
+List of constants used in this project.
+
+author: mail@franciscodias.pt
+date: 03-04-2017
+version: 1.0
+"""
 CLASS_LABELS = ['adaptability', 'collaboration', 'customer', 'detail', 'integrity', 'result']
 
 # paths to the word2vec model

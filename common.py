@@ -1,7 +1,7 @@
 """
 COMMON.PY
 
-Set of functions used by the predictor and trainer.
+Set of functions shared by the predictor and trainer scripts.
 
 author: mail@franciscodias.pt
 date: 03-04-2017
