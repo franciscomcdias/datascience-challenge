@@ -1,17 +1,74 @@
-<p align="center">
-  <img height="100px" src="https://bunch.ai/wp-content/themes/bunch/images/bunch-logo-rgb.svg" alt="Bunch" />
-</p>
+# Bunch's Datascience Challenge
 
-# Datascience Challenge
-
-## Intro
+## Introduction
 
 This is my submission to the Bunch.ai code challenge.
-The objective of this challenge is:
+The objective of this challenge was to **build a text
+classifier that predicts to which dimension a** text **review
+is the most related to**, based on its content.
 
-+ "to **build a text classifier that predicts to which dimension a review is the most related to**, based on its content".
+This solution consisted of an NLP multi-class text classification
+problem and reading about research on organisational culture profiling.
 
-This submission contains e files:
+Each *class* relates with one of the following
+company culture *dimension*:
+
+`Adaptability`, 
+`Collaboration`, 
+`Customer`, 
+`Detail`, 
+`Integrity`, 
+`Result`
+
+The evaluation metric used in this challenge was *accuracy*.
+The evaluation of the models showed that a simple CNN classifier
+reaches an accuracy of 0.46 and TF-IDF with a SVM 0.56. 
+
+Bunch.ai is a Berlin-based startup that assesses the cultural
+profile of companies and teams in order
+Read about their awesome solution and blog at the company's
+website:
+[https://bunch.ai](https://bunch.ai)
+
+
+
+
+## Project Planning
+
+I use a [CRISP](https://en.wikipedia.org/wiki/Cross-industry_standard_process_for_data_mining)
+approach to build a project planning that can divide this project
+into 6 sequential steps:
+
+1. **Understanding the Business**
+    + theory of company profiling, solutions for text categorisation, understand the problem
+2. **Understanding the Data**
+    + structure of the dataset, check quality of the data,adding new sources of data, drawing hypothesis
+3. **Preparing the Data**
+    + pre-processing the text dataset, creating train/test/eval datasets
+4. **Modelling**
+    + choose an evaluation metric, training and testing models
+5. **Evaluating Hypothesis**
+    + evaluate the models' output using a chosen metric, re-iterate
+6. **Deploying**
+    + final requirements, deploying the solutions to a production environment
+
+## Theory of Organisational Culture
+
+The theory of *company culture* that is presented here is
+also referred as O'Reilly model.
+The most important theoretical research work in this
+area has been developed by Charles O'Reilly and Jennifer
+Chatman:
+
++ https://www.researchgate.net/profile/Charles_OReilly
++ https://www.researchgate.net/profile/Jennifer_Chatman
+
+
+
+## Datasets
+
+
+## Experimental Setup
 
 + 1 notebook with all the exploratory work and evaluation;
 + 2 files (training.py, predict.py) that implement the same code as the notebook. 
@@ -42,7 +99,9 @@ in this setup conditions.
 + **constants.py** : shared constants;
 + **results.tsv** : TSV file containing the category predictions for the unlabelled files.
 
-## How to install
+## How to...
+
+#### How to install
 
 + use python 3.4+
 + activate your favourite virtual environment
@@ -55,69 +114,15 @@ in this setup conditions.
 + download the word2vec (required) and sample models (optional) into the folder `models` using the provided script `models/download_models.sh`:
     + run `$ sh download_models.sh`
 
-## How to run
+#### How to run
 
 There are 2 runnable scripts:
 
 + **training**: 
-    + `python training.py [MODEL FILE] [OUTPUT TSV] [JSON FILES...]`
+    `python training.py [MODEL FILE] [OUTPUT TSV] [JSON FILES...]`
 
 + **prediction**:
-    + `python predict.py [DATAFRAME FILE] (tfidf|convnet) [MODEL FILE]`
-
-## Answers to the Requirements
-
-Answers to the requirements of this challenge:
-
-* Use Python as programming language
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+) done!
-* Achieve an accuracy of 90% of trained classifier
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+) >90% acc during
-    training-validation (lower accuracy using the test dataset: ~ 46% CNN ~ 56% TF-IDF), done!
-* Process the unlabelled data using the classifier and save the output in a file, so that we can analyze it
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+) `predict.py` does
-    the job, done!
-* Explain your approach: your code should be documented and you should be able to
-explain your decisions
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+) **notebook** + **code**, done!
-* Discuss the next steps to further improve the classifier (eg: work with multiple
-languages)
-    
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+)  **more data** :)
-        
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+) **tunning classifiers**, choose the best hyper-parameters, test other
-    implementations
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+) **multiple languages**: language detection, use a model for each language,
-        however may exist texts with more than one language and also foreign expressions
-        that can be used in some contexts ("download", "performance", "laisse-faire")
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+) **understand the text**, improving the classification dealing with some
-    characteristics of Natural Language such as ambiguities, intensifiers, recursions (stating
-    different objects such as "the company which department which employees
-    which computers ..."), sarcasm (I guess Glassdoor is full of this), typos ("tpyos"),
-    acronyms (QA, QR, HR, AAR,...), among others.
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+) **find the regions of interest inside the text**, instead of classifying
-    a sentence as a whole, find the regions of the text that convey more information
-    and assign weights to each one; this way, the NLP tasks and classification tasks
-    could be detached from each other;
-* Explain how would make this classifier available in production
-    + ![#c5f015](https://placehold.it/15/c5f015/000000?text=+) I could list some possibilities
-    for discussion, each one with some pros and cons:
-    
-        + **deploy as webapp** using a gateway and a framework such as Bottle or
-    Flask; when the application is started, the model is also loaded
-        into memory, improving the performance;
-        
-        + **deploy as microservice** using also a gateway and a message broker
-    such as RabbitMQ; this way we could improve the availability using
-    several free microservices subscribing the same type of messages;
-        + **deploy in the cloud** using Cloud ML or Amazon SageMaker;
-        improves the performance, availability, and reduces the potential time
-        for VM/cluster administration.
-
-## Models
-
-Files containing the models were not uploaded to **git**. Please use the provided
-download script.
+    `python predict.py [DATAFRAME FILE] (tfidf|convnet) [MODEL FILE]`
 
 ## Examples
 

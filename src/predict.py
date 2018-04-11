@@ -20,8 +20,7 @@ from keras.models import load_model
 from keras.preprocessing.sequence import pad_sequences
 from sklearn.externals import joblib
 
-import common
-import constants
+from src import common, constants
 
 logger = common.logger
 
@@ -35,6 +34,7 @@ def review_from_file(file_path, content):
     """
     logger.info("processing file " + file_path)
     review_company = json.load(open(file_path, "r"))
+
     for review in review_company:
         title, pros, cons = "", "", ""
         if "title" in review and review["title"]:
@@ -60,12 +60,14 @@ def load_json_review_from_file(paths):
     :return: dataframe containing: file_path, title, pros, and cons
     """
     content = []
+
     for path in paths:
         if os.path.isdir(path):
             for file in os.listdir(path):
                 review_from_file(os.path.join(path, file), content)
         else:
             review_from_file(path, content)
+
     return pd.DataFrame.from_dict(content)
 
 
@@ -77,11 +79,13 @@ def write_results_into_tsv_file(results, file_path):
     :return: None
     """
     output_tsv = open(file_path, "w")
+
     for result in results:
         for entry in result:
             output_tsv.write(entry)
             output_tsv.write("\t")
         output_tsv.write("\n")
+
     output_tsv.close()
 
 
@@ -94,11 +98,14 @@ def predict_tfidf(model, reviews):
     :return: list of tuples with: file_path, title of review, predicted category for review
     """
     results = []
+
     for index, review in reviews.iterrows():
-        input = common.tok_pos_stem(review["all"])
+        input = common.tokenisation_posfilter_stemming(review["all"])
         labels = model.predict([input])
-        label = labels[0]
-        results.append([review["file_path"], review["title"], label])
+        # prediction lable for this review
+        prediction_label = labels[0]
+        results.append([review["file_path"], review["title"], prediction_label])
+
     return results
 
 
@@ -114,9 +121,9 @@ def predict_cnn(model, df, key_vecs_file, weights_file):
     """
     results = []
 
-    # builds w2v lexicon
-    wv, weights = common.load_word2vec(key_vecs_file, weights_file)
-    embedding_vectors = common.create_embedding_vectors(df["all"], wv)
+    # builds lexicon
+    word_vectors, weights = common.load_word_vectors(key_vecs_file, weights_file)
+    embedding_vectors = common.create_embedding_vectors(df["all"], word_vectors)
 
     # converts training data into input format for CNN
     vectors = pad_sequences(embedding_vectors, maxlen=constants.SEQUENCE_DIM, padding='post')

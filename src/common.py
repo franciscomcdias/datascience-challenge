@@ -8,18 +8,18 @@ date: 03-04-2017
 version: 1.0
 """
 import logging
+import re
 import sys
 
 import langdetect
 import nltk
 import numpy as np
-import re
 from gensim.models.keyedvectors import Word2VecKeyedVectors
 from nltk import pos_tag
 from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
 
-import constants
+from src import constants
 
 #
 stop_words_en = set(stopwords.words("english"))
@@ -48,6 +48,7 @@ def filter_by_segment(entry, index):
     :return:
     """
     segments = re.split(constants.SEGMENT_TITLES, entry)
+    
     return segments[index]
 
 
@@ -57,20 +58,24 @@ def tok_stem_stop(text):
     :param text: str
     :return: str
     """
+
     # tokenize and remove empty entries
     tokens = nltk.word_tokenize(text.lower())
+
     # stop-word removal, single character tokens removal, and stemming
     tokens = [stemmer_en.stem(_token) for _token in tokens
               if _token not in stop_words_en
               and len(_token) > 1
               and _token not in ["'s", "'d"]
               ]
+
     # n't -> not
     tokens = [_token.replace("n't", "not") for _token in tokens]
+
     return " ".join(tokens)
 
 
-def tok_pos_stem(text):
+def tokenisation_posfilter_stemming(text):
     """
     performs tokenisation + gather just words with POS NN/JJ/VB* + stemming
     :param text: str
@@ -78,10 +83,13 @@ def tok_pos_stem(text):
     """
     # tokenize and remove empty entries
     tokens = nltk.word_tokenize(text.lower())
+
     # choosing only nouns, verbs, and adjectives
     tokens = [_pos[0] for _pos in pos_tag(tokens) if _pos[1] in constants.ALLOWED_POS]
+
     # stemming
     tokens = [stemmer_en.stem(_token) for _token in tokens]
+
     return " ".join(tokens)
 
 
@@ -113,18 +121,22 @@ def tokenise_pos_stemming_pros_cons(df):
     :return: pandas df
     """
     logger.info("tok+pos+stem...")
+
     # pros
-    df["pros_tok_pos_stem"] = df["pros"].apply(tok_pos_stem)
+    df["pros_tok_pos_stem"] = df["pros"].apply(tokenisation_posfilter_stemming)
     df["pros_tok_pos_stem"] = df["pros_tok_pos_stem"].apply(lambda entry: prefix(entry, "+"))
+
     # cons
-    df["cons_tok_pos_stem"] = df["cons"].apply(tok_pos_stem)
+    df["cons_tok_pos_stem"] = df["cons"].apply(tokenisation_posfilter_stemming)
     df["cons_tok_pos_stem"] = df["cons_tok_pos_stem"].apply(lambda entry: prefix(entry, "-"))
+
     # pros + cons
     df["all_tok_pos_stem"] = df["pros_tok_pos_stem"] + " " + df["cons_tok_pos_stem"]
+
     return df
 
 
-def load_word2vec(key_vecs_file, weights_file):
+def load_word_vectors(key_vecs_file, weights_file):
     """
     loads w2v keyvecs and lexicon into memory
     :param key_vecs_file: path to keyvecs file
@@ -132,8 +144,10 @@ def load_word2vec(key_vecs_file, weights_file):
     :return: keyvecs, lexicon
     """
     logger.info("loading word2vec model...")
+
     wv = Word2VecKeyedVectors.load(key_vecs_file)
     weights = np.load(weights_file)
+
     return wv, weights
 
 
@@ -160,11 +174,15 @@ def create_embedding_vectors(df, wv):
 
     logger.info("creating embedding vectors...")
     embedding_vectors = []
+
     for text in df:
         text_embedding = []
+
         for token in text:
             index = get_w2v_token_index(token, wv)
             if index is not None:
                 text_embedding.append(index)
+
         embedding_vectors.append(text_embedding)
+
     return embedding_vectors

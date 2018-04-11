@@ -7,7 +7,7 @@ author: mail@franciscodias.pt
 date: 03-04-2017
 version: 1.0
 """
-CLASS_LABELS = ['adaptability', 'collaboration', 'customer', 'detail', 'integrity', 'result']
+CLASS_LABELS = ('adaptability', 'collaboration', 'customer', 'detail', 'integrity', 'result')
 
 # paths to the word2vec model
 KEY_VECS = "models/wv/word.vectors"
@@ -22,4 +22,4 @@ SEQUENCE_DIM = 200
 SEGMENT_TITLES = '(Pros |Cons |Advice to Management )'
 
 # POS allowed when filtering words by POS
-ALLOWED_POS = ["NN", "NNS", "JJ", "VB", "VBG"]
+ALLOWED_POS = ("NN", "NNS", "JJ", "VB", "VBG")

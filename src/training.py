@@ -30,24 +30,23 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
-import common
-import constants
+from src import common, constants
 
 logger = common.logger
 
 
 # TFIDF MODEL RELATED ##
 
-def build_tfidf_model():
+def build_tfidf_model(svm_kernel="rbf", ngram_range=(1, 1), max_features=500):
     """
     Assembles a TF-IDF + SVM pipeline.
 
     :return: model
     """
     # TODO: arguments to change the parameters of the model
-    count_vectorizer = CountVectorizer(ngram_range=(1, 1), max_features=500)
-    tf_idf = TfidfTransformer(norm="l2")
-    svm_clf = SVC()
+    count_vectorizer = CountVectorizer(ngram_range=ngram_range, max_features=max_features)
+    tf_idf = TfidfTransformer()
+    svm_clf = SVC(kernel=svm_kernel)
     model = Pipeline([
         ("count_vectorizer", count_vectorizer),
         ("tf_idf", tf_idf),
@@ -154,32 +153,41 @@ def preprocess_dataframe(df):
     :return: pandas df
     """
     logger.info("pre-processing dataframe...")
+
     # remove entries with no category
     logger.info("\t- no categories")
     df = df[df.labelmax != "null"]
+
     # remove duplicates
     logger.info("\t- duplicates")
     df = df.drop_duplicates()
+
     # remove entries with possible non-english texts
     logger.info("\t- non-english")
     df = df[df["text"].apply(common.text_language) == "en"]
+
     # split between pros and cons
     logger.info("\t- pros/cons")
     df["pros"] = df["text"].apply(lambda entry: common.filter_by_segment(entry, 2))
     df["cons"] = df["text"].apply(lambda entry: common.filter_by_segment(entry, 4))
     df["all"] = df["pros"] + " " + df["cons"]
+
     return df
 
 
 def get_parser():
+
     parser = argparse.ArgumentParser(description="")
+
     parser.add_argument("dataframe", help="model to load and perform", type=str)
     parser.add_argument("type", type=str, help="type of model, 'tfidf' or 'convnet'")
     parser.add_argument("model", type=str, help="file path for the serialized model")
+
     return parser
 
 
 if __name__ == "__main__":
+
     parser = get_parser()
     args = parser.parse_args()
 
@@ -200,7 +208,7 @@ if __name__ == "__main__":
         # CNN
 
         # builds w2v lexicon
-        wv, weights = common.load_word2vec(constants.KEY_VECS, constants.WEIGTHS)
+        wv, weights = common.load_word_vectors(constants.KEY_VECS, constants.WEIGTHS)
         embedding_vectors = common.create_embedding_vectors(df["all"], wv)
 
         # converts training data into input format for CNN
